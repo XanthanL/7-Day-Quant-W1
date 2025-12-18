@@ -1,0 +1,9 @@
+akshare
+pandas
+numpy==1.26.0
+matplotlib
+mplfinance
+backtrader
+SQLAlchemy>=1.4
+tqdm
+seaborn
