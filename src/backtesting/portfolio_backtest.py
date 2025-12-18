@@ -94,13 +94,13 @@ class PortfolioBacktester:
         # Step 2: Time Loop
         for i, current_day in enumerate(self.trading_days):
             current_day_date = current_day.date()
-            print(f"\nProcessing Day: {current_day_date} ({i+1}/{len(self.trading_days)})")
+            # Removed daily print: print(f"\nProcessing Day: {current_day_date} ({i+1}/{len(self.trading_days)})")
 
             # Get prices for today
             current_day_prices = self.close_prices_df.loc[current_day].dropna()
 
             if current_day_prices.empty:
-                print(f"  No price data for {current_day_date}, skipping day.")
+                # Removed daily print: print(f"  No price data for {current_day_date}, skipping day.")
                 # Record previous day's value if current day has no prices
                 last_record = self.portfolio_history.iloc[-1]
                 self.portfolio_history = self.portfolio_history._append(
@@ -111,7 +111,7 @@ class PortfolioBacktester:
             
             # --- Rebalance Logic ---
             if i % rebalance_freq == 0:
-                print(f"  Rebalancing on {current_day_date}...")
+                print(f"\n--- Rebalancing on {current_day_date} ---")
                 
                 # For rebalancing, we use data available *up to the previous trading day*.
                 # We pass the day BEFORE the current trading day as target_date to AlphaModel
@@ -120,40 +120,41 @@ class PortfolioBacktester:
                 
                 selected_stocks_df = self.alpha_model.get_top_stocks(top_k=top_k, target_date=target_date_for_alpha_model)
                 new_selection = set(selected_stocks_df['symbol'].tolist())
-                print(f"  New selection: {list(new_selection)}")
+                print(f"  Selected stocks: {list(new_selection)}")
 
+                stocks_sold = []
                 # --- Sell old stocks ---
                 for symbol, shares in list(self.current_positions.items()): # Iterate on a copy
                     if symbol not in new_selection:
                         if symbol in current_day_prices.index:
                             sell_price = current_day_prices[symbol]
                             self.cash += shares * sell_price * (1 - self.commission)
-                            print(f"    Sold {shares} shares of {symbol} at {sell_price:.2f}. Cash: {self.cash:.2f}")
+                            stocks_sold.append(f"{symbol} ({shares} shares @ {sell_price:.2f})")
                             del self.current_positions[symbol]
-                        else:
-                            print(f"    Warning: Tried to sell {symbol} but no current price available.")
-                            # If no price, assume holding for now, or liquidate at last known price etc.
-                            # For simplicity, we keep it in positions but don't add to cash
-                            # if it cannot be priced.
+                        # Removed warning, as it's not a rebalancing action, but a data issue
+                        # else:
+                        #     print(f"    Warning: Tried to sell {symbol} but no current price available.")
+                            
+                if stocks_sold:
+                    print(f"  Sold: {', '.join(stocks_sold)}")
+                else:
+                    print("  No stocks sold.")
 
+                stocks_bought = []
                 # --- Buy new stocks (equal weight allocation) ---
                 if new_selection:
-                    # Calculate total value *before* new purchases
-                    portfolio_value_before_purchase = self._get_portfolio_value(current_day_prices)
-                    
                     # Distribute available cash among new selections
-                    # Only buy if cash is available for new purchases
                     if self.cash > 0:
                         buy_candidates = []
                         for symbol in new_selection:
                             if symbol in current_day_prices.index and current_day_prices[symbol] > 0:
                                 buy_candidates.append(symbol)
-                            else:
-                                print(f"    Warning: {symbol} in new selection but no valid current price or price is zero. Skipping purchase.")
+                            # Removed warning
+                            # else:
+                            #     print(f"    Warning: {symbol} in new selection but no valid current price or price is zero. Skipping purchase.")
 
                         if buy_candidates:
                             cash_per_stock = self.cash / len(buy_candidates)
-                            print(f"    Available cash for new purchases: {self.cash:.2f}, per stock: {cash_per_stock:.2f}")
 
                             for symbol in buy_candidates:
                                 buy_price = current_day_prices[symbol]
@@ -163,17 +164,29 @@ class PortfolioBacktester:
                                 if shares_to_buy > 0 and (shares_to_buy * buy_price * (1 + self.commission)) <= self.cash:
                                     self.cash -= shares_to_buy * buy_price * (1 + self.commission)
                                     self.current_positions[symbol] = self.current_positions.get(symbol, 0) + shares_to_buy
-                                    print(f"    Bought {shares_to_buy} shares of {symbol} at {buy_price:.2f}. Cash: {self.cash:.2f}")
-                                elif shares_to_buy > 0:
-                                     print(f"    Not enough cash to buy {shares_to_buy} shares of {symbol} with commission. Remaining cash: {self.cash:.2f}")
-                                else:
-                                    print(f"    Cannot buy 0 shares of {symbol} or buy price too high for available cash.")
-                        else:
-                            print("    No valid buy candidates among new selection with available prices.")
-                    else:
-                        print("    No cash available to make new purchases.")
+                                    stocks_bought.append(f"{symbol} ({shares_to_buy} shares @ {buy_price:.2f})")
+                                # Removed warnings/prints here for brevity, keeping only essential
+                                # elif shares_to_buy > 0:
+                                #      print(f"    Not enough cash to buy {shares_to_buy} shares of {symbol} with commission. Remaining cash: {self.cash:.2f}")
+                                # else:
+                                #     print(f"    Cannot buy 0 shares of {symbol} or buy price too high for available cash.")
+                        # Removed "No valid buy candidates" print
+                        # else:
+                        #     print("    No valid buy candidates among new selection with available prices.")
+                    # Removed "No cash available" print
+                    # else:
+                    #     print("    No cash available to make new purchases.")
+                # Removed "No stocks selected for purchase" print
+                # else:
+                #     print("  No stocks selected for purchase during rebalancing.")
+
+                if stocks_bought:
+                    print(f"  Bought: {', '.join(stocks_bought)}")
                 else:
-                    print("  No stocks selected for purchase during rebalancing.")
+                    print("  No stocks bought.")
+
+                current_total_value_after_rebalance = self._get_portfolio_value(current_day_prices)
+                print(f"  After rebalance: Total Value = {current_total_value_after_rebalance:.2f}, Cash = {self.cash:.2f}")
             
             # --- Daily Net Asset Value Update ---
             current_total_value = self._get_portfolio_value(current_day_prices)
@@ -181,7 +194,7 @@ class PortfolioBacktester:
                 {'Date': current_day_date, 'TotalValue': current_total_value, 'Cash': self.cash},
                 ignore_index=True
             )
-            print(f"  End of day {current_day_date}: Total Value = {current_total_value:.2f}, Cash = {self.cash:.2f}")
+            # Removed daily print: print(f"  End of day {current_day_date}: Total Value = {current_total_value:.2f}, Cash = {self.cash:.2f}")
 
         print("\nBacktest completed.")
         print(f"Final Portfolio Value: {self.portfolio_history['TotalValue'].iloc[-1]:.2f}")

@@ -11,7 +11,6 @@ import pandas as pd
 
 # 从新的包路径导入策略
 from src.strategies.backtrader_ma import DualMAStrategy # 从 src.strategies.backtrader_ma 导入 DualMAStrategy
-from src.data.provider import MarketDataProvider # 导入 MarketDataProvider
 
 def run_backtest(strategy_class, df, initial_cash=100000.0, commission=0.0005, plot=True):
     """
@@ -69,22 +68,10 @@ def run_backtest(strategy_class, df, initial_cash=100000.0, commission=0.0005, p
     print('\n分析器结果:')
     print('夏普比率:', strat.analyzers.sharpe.get_analysis()['sharperatio'])
     print('最大回撤:', strat.analyzers.drawdown.get_analysis()['max']['drawdown'])
-    print('最大回撤百分比: %.2f%%' % (strat.analyzers.drawdown.get_analysis().max.drawdown))
+    print('最大回撤百分比: %.2f%% ' % (strat.analyzers.drawdown.get_analysis().max.drawdown))
 
     # 绘制结果
     if plot:
         cerebro.plot()
 
-if __name__ == '__main__':
-    # 示例运行 DualMAStrategy
-    # 确保 'market_data/600519.csv' 存在
-    # 首先加载数据
-    ticker = '600519'
-    provider = MarketDataProvider(data_dir='market_data') # 注意：相对路径可能需要调整
-    stock_data = provider.load_data(ticker)
-
-    if stock_data is not None:
-        print(f"--- 运行 DualMAStrategy 回测 (股票代码: {ticker}) ---")
-        run_backtest(DualMAStrategy, df=stock_data.copy(), plot=True)
-    else:
-        print(f"无法加载 {ticker} 的数据。")
+# Removed if __name__ == '__main__': block as it relied on MarketDataProvider

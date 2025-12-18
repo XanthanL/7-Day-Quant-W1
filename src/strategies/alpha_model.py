@@ -65,26 +65,25 @@ class AlphaModel:
         end_date_for_load = target_date_for_selection
         start_date_for_load = target_date_for_selection - timedelta(days=90)
 
-        print(f"Loading panel data from {start_date_for_load} to {end_date_for_load} for factor calculation (as of {target_date_for_selection})...")
+        # Load data silently
         panel_data = self.db_manager.load_panel_data(start_date_for_load, end_date_for_load)
 
         if panel_data.empty:
-            print("No panel data loaded for factor calculation.")
+            # print("No panel data loaded for factor calculation.") # Keep for debugging if no data at all
             return pd.DataFrame()
         
         # Ensure we only use data up to the target_date_for_selection
         panel_data = panel_data.loc[panel_data.index.get_level_values('trade_date') <= pd.Timestamp(target_date_for_selection)]
 
 
-        # Calculate factors
-        print("Calculating factors...")
+        # Calculate factors silently
         factors_df = self.calculate_factors(panel_data.copy()) # Use a copy to avoid SettingWithCopyWarning
 
         # Drop rows with NaN in factors (due to rolling/shifting)
         factors_df.dropna(subset=['Momentum_20', 'Volatility_20'], inplace=True)
 
         if factors_df.empty:
-            print("No data remaining after factor calculation and dropping NaNs.")
+            # print("No data remaining after factor calculation and dropping NaNs.") # Keep for debugging
             return pd.DataFrame()
 
         # Get data for the specific target_date or the most recent available trading day on or before target_date
@@ -95,20 +94,21 @@ class AlphaModel:
         valid_trade_dates = available_dates[available_dates <= pd.Timestamp(target_date_for_selection)]
         
         if valid_trade_dates.empty:
-            print(f"No valid trade date found on or before {target_date_for_selection} for factor analysis.")
+            # print(f"No valid trade date found on or before {target_date_for_selection} for factor analysis.") # Keep for debugging
             return pd.DataFrame()
             
         analysis_date = valid_trade_dates.max() # This is the actual date for which we have factors
-        print(f"Analyzing data for factors as of: {analysis_date}")
+        # print(f"Analyzing data for factors as of: {analysis_date}") # Removed verbose print
         
-        target_day_factors = factors_df.loc[analysis_date]
+        # FIX SettingWithCopyWarning: Ensure target_day_factors is a true copy
+        target_day_factors = factors_df.loc[analysis_date].copy()
         
         if target_day_factors.empty:
-            print(f"No factor data for the analysis date {analysis_date}.")
+            # print(f"No factor data for the analysis date {analysis_date}.") # Keep for debugging
             return pd.DataFrame()
 
         # Scoring Logic
-        print("Ranking stocks and calculating final scores...")
+        # print("Ranking stocks and calculating final scores...") # Removed verbose print
         # Rank Momentum (descending, higher momentum is better)
         target_day_factors['Rank_Momentum'] = target_day_factors['Momentum_20'].rank(ascending=False, method='average')
 
@@ -128,7 +128,9 @@ class AlphaModel:
         top_stocks_result = top_stocks.reset_index()[['symbol', 'Momentum_20', 'Volatility_20', 'Final_Score']]
         top_stocks_result['analysis_date'] = analysis_date # Add analysis date to the result
         
-        print(f"Top {top_k} stocks identified as of {analysis_date}:")
-        print(top_stocks_result)
+        # print(f"Top {top_k} stocks identified as of {analysis_date}:") # Removed verbose print
+        # print(top_stocks_result) # Removed verbose print
+
+        return top_stocks_result
 
         return top_stocks_result
