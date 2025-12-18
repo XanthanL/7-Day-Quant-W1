@@ -77,14 +77,11 @@ class StockDownloader:
             if data.empty:
                 return {'symbol': symbol, 'status': 'NO_NEW_DATA', 'message': f'No new data from {start_date_str} to {end_date_str}.'}
 
-            # Data cleaning and column renaming for DBManager.save_daily_data
+            # Data cleaning and column renaming to match StockDaily model
             data.rename(columns={
-                '日期': 'Date', '开盘': 'Open',
-                '最高': 'High',
-                '最低': 'Low', '收盘': 'Close', '成交量': 'Volume'
+                'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume',
+                '日期': 'Date', '开盘': 'Open', '最高': 'High', '最低': 'Low', '收盘': 'Close', '成交量': 'Volume'
             }, inplace=True)
-            data['Date'] = pd.to_datetime(data['Date'])
-            data.set_index('Date', inplace=True)
             
             # Filter out any data points already in the database
             # This is a double check, as start_date_download should already handle it.
@@ -94,6 +91,57 @@ class StockDownloader:
 
             if data.empty:
                  return {'symbol': symbol, 'status': 'ALREADY_EXIST', 'message': 'Data already exists in DB.'}
+
+            self.db_manager.save_daily_data(data, symbol)
+            return {'symbol': symbol, 'status': 'SUCCESS', 'records_saved': len(data)}
+
+        except Exception as e:
+            return {'symbol': symbol, 'status': 'FAILED', 'error': str(e)}
+
+    def download_index_data(self, symbol: str = 'sh000300') -> dict:
+        """
+        下载指定指数的历史日线数据。
+        
+        :param symbol: 指数代码 (例如: 'sh000300' 代表沪深300)。
+        :return: 包含下载结果的字典。
+        """
+        print(f"Downloading index data for {symbol}...")
+        try:
+            latest_date_in_db = self.db_manager.get_latest_date(symbol)
+            
+            start_date_download: date
+            if latest_date_in_db:
+                start_date_download = latest_date_in_db + timedelta(days=1)
+            else:
+                start_date_download = date(2005, 1, 1) # Indices usually have longer history
+
+            end_date_download = datetime.now().date()
+            
+            if start_date_download > end_date_download:
+                return {'symbol': symbol, 'status': 'SKIPPED', 'message': 'Index data already up to date.'}
+
+            start_date_str = start_date_download.strftime('%Y%m%d')
+            end_date_str = end_date_download.strftime('%Y%m%d')
+
+            data = ak.stock_zh_index_daily(symbol=symbol)
+
+            if data.empty:
+                return {'symbol': symbol, 'status': 'NO_NEW_DATA', 'message': 'No data found for index.'}
+
+            # Data cleaning and column renaming to match StockDaily model
+            data.rename(columns={
+                'date': 'Date', 'open': 'Open',
+                'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'
+            }, inplace=True)
+            data['Date'] = pd.to_datetime(data['Date'])
+            data.set_index('Date', inplace=True)
+            
+            # Filter data to save only new records
+            if latest_date_in_db:
+                 data = data[data.index.date > latest_date_in_db]
+
+            if data.empty:
+                 return {'symbol': symbol, 'status': 'ALREADY_EXIST', 'message': 'Index data already exists in DB.'}
 
             self.db_manager.save_daily_data(data, symbol)
             return {'symbol': symbol, 'status': 'SUCCESS', 'records_saved': len(data)}

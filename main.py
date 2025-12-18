@@ -38,9 +38,10 @@ def data_management_menu(db_manager: DBManager):
         print("\n--- 数据管理 ---")
         print("  1. 全市场股票数据增量下载")
         print("  2. 检查数据库状态")
+        print("  3. 下载/更新大盘指数数据")
         print("  0. 返回主菜单")
 
-        choice = input("请输入您的选择 (0-2): ")
+        choice = input("请输入您的选择 (0-3): ")
 
         if choice == '1':
             print("\n--- 全市场股票数据增量下载 ---")
@@ -80,6 +81,19 @@ def data_management_menu(db_manager: DBManager):
                 else:
                     print("  (无数据)")
             print("--- 数据库状态检查完成 ---")
+
+        elif choice == '3':
+            print("\n--- 下载/更新大盘指数数据 ---")
+            index_symbol = input("请输入指数代码 (例如: sh000300, 默认 sh000300): ").strip()
+            if not index_symbol:
+                index_symbol = 'sh000300'
+            
+            result = downloader.download_index_data(symbol=index_symbol)
+            if result['status'] == 'SUCCESS':
+                print(f"  指数 {index_symbol} 数据下载成功, 保存 {result.get('records_saved', 0)} 条记录.")
+            else:
+                print(f"  指数 {index_symbol} 数据下载失败: {result.get('message', result.get('error', '未知错误'))}")
+            print("--- 大盘指数数据下载完成 ---")
         elif choice == '0':
             break
         else:
