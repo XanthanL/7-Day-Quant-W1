@@ -7,3 +7,5 @@ backtrader
 SQLAlchemy>=1.4
 tqdm
 seaborn
+streamlit
+plotly

@@ -81,6 +81,34 @@ python main.py
 -   **5. 实时监控 (Live Monitor)**
     -   启动实盘信号监听服务。
 
+## Deployment (Docker)
+
+为了方便部署和环境隔离，本项目提供了 Docker 支持。
+
+### 1. 构建 Docker 镜像
+
+在项目根目录下执行以下命令构建 Docker 镜像。镜像名称可以自定义，例如 `quant-app`。
+
+```bash
+docker build -t quant-app .
+```
+
+### 2. 运行 Docker 容器
+
+构建完成后，可以通过以下命令运行 Docker 容器。请注意，`quant.db` 文件通过 Volume 挂载到容器内部，以确保数据持久化且独立于容器生命周期。Streamlit 仪表盘将在容器的 8501 端口运行，并通过 `-p` 参数映射到宿主机的 8501 端口。
+
+```bash
+docker run -p 8501:8501 -v $(pwd)/quant.db:/app/quant.db --name quant-dashboard quant-app
+```
+
+**说明**:
+-   `-p 8501:8501`: 将宿主机的 8501 端口映射到容器的 8501 端口。
+-   `-v $(pwd)/quant.db:/app/quant.db`: 将当前目录下的 `quant.db` 文件挂载到容器内的 `/app/quant.db`。这样，你的数据将存储在宿主机上，即使容器被删除，数据也不会丢失。
+-   `--name quant-dashboard`: 为你的容器指定一个名称，方便管理。
+-   `quant-app`: 你构建的 Docker 镜像名称。
+
+运行成功后，在浏览器中访问 `http://localhost:8501` 即可使用 Streamlit 仪表盘。
+
 ## Project Structure
 
 ```text
